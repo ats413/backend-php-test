@@ -3,7 +3,7 @@
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
-$app['twig'] = $app->share($app->extend('twig', function($twig, $app) {
+$app['twig'] = $app->share($app->extend('twig', function ($twig, $app) {
     $twig->addGlobal('user', $app['session']->get('user'));
 
     return $twig;
@@ -25,7 +25,7 @@ $app->match('/login', function (Request $request) use ($app) {
         $sql = "SELECT * FROM users WHERE username = '$username' and password = '$password'";
         $user = $app['db']->fetchAssoc($sql);
 
-        if ($user){
+        if ($user) {
             $app['session']->set('user', $user);
             return $app->redirect('/todo');
         }
@@ -46,10 +46,22 @@ $app->get('/todo/{id}', function ($id) use ($app) {
         return $app->redirect('/login');
     }
 
-    if ($id){
+    if ($id) {
+        # check whether a todo list exists with the specified id
         $sql = "SELECT * FROM todos WHERE id = '$id'";
         $todo = $app['db']->fetchAssoc($sql);
 
+        # render an error page with 404 not found
+        if ($todo == null) {
+            $error_details = ['code' => 404, 'detail' => 'Not Found'];
+            return $app['twig']->render('error.html', ['error' => $error_details]);
+        }
+
+        # Render an error page if the user is not authorized to access to specific todo
+        if ($todo['user_id'] != $user['id']) {
+            $error_details = ['code' => 401, 'detail' => 'Unauthorized'];
+            return $app['twig']->render('error.html', ['error' => $error_details]);
+        }
         return $app['twig']->render('todo.html', [
             'todo' => $todo,
         ]);
@@ -62,7 +74,7 @@ $app->get('/todo/{id}', function ($id) use ($app) {
         ]);
     }
 })
-->value('id', null);
+    ->value('id', null);
 
 
 $app->post('/todo/add', function (Request $request) use ($app) {
@@ -83,6 +95,18 @@ $app->post('/todo/add', function (Request $request) use ($app) {
 $app->match('/todo/delete/{id}', function ($id) use ($app) {
 
     $sql = "DELETE FROM todos WHERE id = '$id'";
+    $app['db']->executeUpdate($sql);
+
+    return $app->redirect('/todo');
+});
+
+# Mark a todo as completed
+$app->match('/todo/completed/{id}', function ($id) use ($app) {
+    if (null === $user = $app['session']->get('user')) {
+        return $app->redirect('/login');
+    }
+
+    $sql = "UPDATE todos SET is_completed = true WHERE id = '$id'";
     $app['db']->executeUpdate($sql);
 
     return $app->redirect('/todo');
