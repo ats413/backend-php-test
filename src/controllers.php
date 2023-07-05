@@ -41,7 +41,7 @@ $app->get('/logout', function () use ($app) {
 });
 
 
-$app->get('/todo/{id}', function ($id) use ($app) {
+$app->get('/todo/{id}', function (Request $request, $id) use ($app) {
     if (null === $user = $app['session']->get('user')) {
         return $app->redirect('/login');
     }
@@ -66,11 +66,25 @@ $app->get('/todo/{id}', function ($id) use ($app) {
             'todo' => $todo,
         ]);
     } else {
-        $sql = "SELECT * FROM todos WHERE user_id = '${user['id']}'";
+        $number_of_items_per_page = 5;
+        $current_page = $request->get('page');
+
+        # The first time the site is loaded, no value of page is passed. So assigning default as 1
+
+        $current_page = ($current_page) ? $current_page : 1;
+
+        $starting_row = ($current_page - 1) * $number_of_items_per_page;
+
+        $sql = "SELECT * FROM todos WHERE user_id = '${user['id']}' LIMIT $starting_row, $number_of_items_per_page";
         $todos = $app['db']->fetchAll($sql);
+
+        # Get a count of todo's displayed to calculate number of pages
+        $total_rows = $app['db']->fetchOne("SELECT COUNT(*) FROM todos WHERE user_id = '${user['id']}'");
 
         return $app['twig']->render('todos.html', [
             'todos' => $todos,
+            'current_page' => $current_page,
+            'total_pages' => ceil($total_rows / $number_of_items_per_page)
         ]);
     }
 })

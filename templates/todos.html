@@ -44,6 +44,22 @@
             </tr>
         {% endfor %}
         <tr>
+            <td colspan="6" class="text-center"> 
+                {# Show pagination if there are more than 5 items to be displayed #}
+                {% if total_pages > 1 %}
+                {% for page_number in 1..total_pages %}
+                {% if current_page == page_number %}
+                <button class="small btn btn-primary">{{ page_number }}</button>
+                {% else %}
+                <a href='{{ app.request.baseurl }}/todo?page={{page_number}}' class="small btn btn-secondary">{{
+                    page_number
+                    }}</a>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
             <form method="post" action="{{ app.request.baseurl }}/todo/add">
                 <td colspan="5">
                     <input type="textbox" name="description" class="small-6 small-center" placeholder="Description..." oninvalid="this.setCustomValidity('Please add a description!')" required>
