@@ -24,6 +24,13 @@
                 </form>
             </td>
         </tr>
+        <tr>
+            <td class="text-center" colspan="5">
+                <form method="get" action="{{ app.request.baseurl }}/todo/{{ todo.id }}/json">
+                    <button type="submit" class="btn btn-xs btn-primary">Show JSON</button>
+                </form>
+            </td>
+        </tr>
     </table>
 </div>
 

@@ -110,4 +110,30 @@ $app->match('/todo/completed/{id}', function ($id) use ($app) {
     $app['db']->executeUpdate($sql);
 
     return $app->redirect('/todo');
-});
+})->value('id', null);
+
+# Get a todo list in json format
+$app->get('/todo/{id}/json', function ($id) use ($app) {
+    if (null === $user = $app['session']->get('user')) {
+        return $app->redirect('/login');
+    }
+    // Case of 404 & 401
+
+    $sql = "SELECT * FROM todos WHERE id = '$id'";
+    $todo = $app['db']->fetchAssoc($sql);
+    $todo_json = json_encode($todo);
+
+    # render an error page with 404 not found
+    if ($todo == null) {
+        $error_details = ['code' => 404, 'detail' => 'Not Found'];
+        return $app['twig']->render('error.html', ['error' => $error_details]);
+    }
+
+    # Render an error page if the user is not authorized to access to specific todo
+    if ($todo['user_id'] != $user['id']) {
+        $error_details = ['code' => 401, 'detail' => 'Unauthorized'];
+        return $app['twig']->render('error.html', ['error' => $error_details]);
+    }
+
+    return $todo_json;
+})->value('id', null);
