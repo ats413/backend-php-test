@@ -11,16 +11,17 @@ $app['twig'] = $app->share($app->extend('twig', function ($twig, $app) {
 
 
 $app->get('/', function () use ($app) {
-    return $app['twig']->render('index.html', [
-        'readme' => file_get_contents('README.md'),
-    ]);
+    return $app->redirect('/login');
 });
 
 
 $app->match('/login', function (Request $request) use ($app) {
+
+    if(null !== $app['session']->get('user')) {
+        return $app->redirect('/login');
+    }
     $username = $request->get('username');
     $password = $request->get('password');
-
     if ($username) {
         $sql = "SELECT * FROM users WHERE username = '$username' and password = '$password'";
         $user = $app['db']->fetchAssoc($sql);
@@ -37,7 +38,7 @@ $app->match('/login', function (Request $request) use ($app) {
 
 $app->get('/logout', function () use ($app) {
     $app['session']->set('user', null);
-    return $app->redirect('/');
+    return json_encode(array('success' => true));
 });
 
 
@@ -45,7 +46,7 @@ $app->get('/todo/{id}', function (Request $request, $id) use ($app) {
     if (null === $user = $app['session']->get('user')) {
         return $app->redirect('/login');
     }
-
+    $contentType = $request->headers->get('Content-Type');
     if ($id) {
         # check whether a todo list exists with the specified id
         $sql = "SELECT * FROM todos WHERE id = '$id'";
@@ -66,26 +67,14 @@ $app->get('/todo/{id}', function (Request $request, $id) use ($app) {
             'todo' => $todo,
         ]);
     } else {
-        $number_of_items_per_page = 5;
-        $current_page = $request->get('page');
-
-        # The first time the site is loaded, no value of page is passed. So assigning default as 1
-
-        $current_page = ($current_page) ? $current_page : 1;
-
-        $starting_row = ($current_page - 1) * $number_of_items_per_page;
-
-        $sql = "SELECT * FROM todos WHERE user_id = '${user['id']}' LIMIT $starting_row, $number_of_items_per_page";
+        $sql = "SELECT * FROM todos WHERE user_id = '${user['id']}'";
         $todos = $app['db']->fetchAll($sql);
 
-        # Get a count of todo's displayed to calculate number of pages
-        $total_rows = $app['db']->fetchOne("SELECT COUNT(*) FROM todos WHERE user_id = '${user['id']}'");
-
-        return $app['twig']->render('todos.html', [
-            'todos' => $todos,
-            'current_page' => $current_page,
-            'total_pages' => ceil($total_rows / $number_of_items_per_page)
-        ]);
+        if (strpos($contentType, 'application/json') === false) {
+            return $app['twig']->render('todos.html');
+        } else {
+            return json_encode($todos);
+        }
     }
 })
     ->value('id', null);
@@ -101,9 +90,9 @@ $app->post('/todo/add', function (Request $request) use ($app) {
 
     $sql = "INSERT INTO todos (user_id, description) VALUES ('$user_id', '$description')";
     $app['db']->executeUpdate($sql);
+    $id = $app['db']->lastInsertId();
 
-    $app['session']->getFlashBag()->add('messages', 'To-Do added');
-    return $app->redirect('/todo');
+    return json_encode(array('success' => true, 'id' => $id, 'user_id' => $user_id, 'description' => $description));
 });
 
 
@@ -111,8 +100,8 @@ $app->match('/todo/delete/{id}', function ($id) use ($app) {
 
     $sql = "DELETE FROM todos WHERE id = '$id'";
     $app['db']->executeUpdate($sql);
-    $app['session']->getFlashBag()->add('messages', 'To-Do Deleted');
-    return $app->redirect('/todo');
+
+    return json_encode(array('success' => true));
 });
 
 # Mark a todo as completed
@@ -121,34 +110,35 @@ $app->match('/todo/completed/{id}', function ($id) use ($app) {
         return $app->redirect('/login');
     }
 
-    $sql = "UPDATE todos SET is_completed = true WHERE id = '$id'";
+    $sql = "UPDATE todos SET is_completed = NOT is_completed WHERE id = '$id'";
     $app['db']->executeUpdate($sql);
 
-    return $app->redirect('/todo');
+    return json_encode(array('success' => true));
 })->value('id', null);
 
 # Get a todo list in json format
-$app->get('/todo/{id}/json', function ($id) use ($app) {
-    if (null === $user = $app['session']->get('user')) {
-        return $app->redirect('/login');
-    }
-    // Case of 404 & 401
+# Commenting out for task 6
+// $app->get('/todo/{id}/json', function ($id) use ($app) {
+//     if (null === $user = $app['session']->get('user')) {
+//         return $app->redirect('/login');
+//     }
+//     // Case of 404 & 401
 
-    $sql = "SELECT * FROM todos WHERE id = '$id'";
-    $todo = $app['db']->fetchAssoc($sql);
-    $todo_json = json_encode($todo);
+//     $sql = "SELECT * FROM todos WHERE id = '$id'";
+//     $todo = $app['db']->fetchAssoc($sql);
+//     $todo_json = json_encode($todo);
 
-    # render an error page with 404 not found
-    if ($todo == null) {
-        $error_details = ['code' => 404, 'detail' => 'Not Found'];
-        return $app['twig']->render('error.html', ['error' => $error_details]);
-    }
+//     # render an error page with 404 not found
+//     if ($todo == null) {
+//         $error_details = ['code' => 404, 'detail' => 'Not Found'];
+//         return $app['twig']->render('error.html', ['error' => $error_details]);
+//     }
 
-    # Render an error page if the user is not authorized to access to specific todo
-    if ($todo['user_id'] != $user['id']) {
-        $error_details = ['code' => 401, 'detail' => 'Unauthorized'];
-        return $app['twig']->render('error.html', ['error' => $error_details]);
-    }
+//     # Render an error page if the user is not authorized to access to specific todo
+//     if ($todo['user_id'] != $user['id']) {
+//         $error_details = ['code' => 401, 'detail' => 'Unauthorized'];
+//         return $app['twig']->render('error.html', ['error' => $error_details]);
+//     }
 
-    return $todo_json;
-})->value('id', null);
+//     return $todo_json;
+// })->value('id', null);

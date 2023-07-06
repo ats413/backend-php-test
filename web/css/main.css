@@ -5,3 +5,103 @@ body {
 .login-form > div {
     margin-top: 10px;
 }
+
+
+.flex {
+  display: flex;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.todos-createDescription {
+  margin-right: 10px;
+}
+
+.container-fluid {
+  background: #3b0282;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.row-login {
+  width: 400px;
+  height: 400px;
+  background-color: #fff;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 1em 2em;
+  display: table;
+}
+
+.row-todos {
+  width: 65%;
+  height: 55%;
+  background-color: #fff;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+  padding: 1em 2em;
+  display: table;
+}
+
+.column-login {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.btn-login {
+  flex: 1 1 auto;
+  width: 100%;
+  text-align: center;
+  text-transform: uppercase;
+  transition: 0.5s;
+  background-size: 200% auto;
+  color: white;
+  box-shadow: 0 0 20px #eee;
+  border-radius: 10px;
+  background-image: linear-gradient(to right, #fbc2eb 0%, #a6c1ee 51%, #fbc2eb 100%);
+}
+
+.btn-login:hover {
+  color: white;
+  background-position: right center;
+}
+
+.glyphicon-login {
+  font-size: 50px;
+  color:#a45cfc;
+}
+
+#todos {
+  background: #3b0282;
+}
+
+.new-todo {
+  width:100%
+}
+
+.cell-border-down{
+  border-top:none !important;
+  border-bottom: 1px solid rgb(222, 222, 222);
+}
+
+.textDecoration {
+  text-decoration: line-through;
+}

@@ -1,74 +1,150 @@
-{% extends "layout.html" %}
+{% extends "layout.html" %} 
 
 {% block content %}
-<div class="col-md-4 col-md-offset-4">
-    <div class="col-12">
-        {% for message in app.session.getFlashBag.get('messages') %}
-        <div class="alert alert-success alert-dismissible" role="alert">
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="false">&times;</span></button>
-            <strong>{{ message }}</strong> 
+
+<div id="todos">
+    <div class="row-todos">
+        <div class="column-todos">
+            <div style="text-align: center;">
+                <h3>Your To-DO List</h3>
+            </div>
+            <hr>
+            <div class="input-group">
+                <input type="text" v-model="newTodoDescription" class="form-control" placeholder="Description..." aria-describedby="description">
+                <span class="input-group-btn" @click="this.createToDo" >
+                    <button class="btn btn-login btn-default " type="button" :disabled="isDisabled" >Add Todo</button>
+                </span>
+              </div>
+
+            </br>
+
+
+            <div>
+                <table class="table">              
+                    <tr v-for="todo in toDoList" v-bind:key="todo.id">
+                        <td class="cell-border-down" :class="{textDecoration: todo.is_completed}">
+                            <input type="checkbox" id="checkbox" v-model="todo.is_completed" @click="markCompleted(todo)"/>
+                            ${todo.description}</td>
+                        <td class="cell-border-down" style="text-align: right;">
+                            <button @click="deleteToDo(todo)" type="button" class="btn btn-xs ">
+                                <span class="glyphicon glyphicon-remove glyphicon-white"></span>
+                            </button>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="vertical-align: bottom; display: table-cell;">
+                <button type="submit" class="btn btn-login" @click="logout()">Logout</button>
+            </div>
         </div>
-        {% endfor %}
     </div>
-    <h1>Todo List:</h1>
-    <table class="table table-striped">
-        <th>#</th><th>User</th><th>Description</th><th>Complete</th><th>Delete</th><th>JSON</th>
-        {% for todo in todos %}
-            <tr>
-                <td>{{ todo.id }}</td>
-                <td class="text-center">{{ todo.user_id }}</td>
-                <td>
-                    <a href="{{ app.request.baseurl }}/todo/{{ todo.id }}">
-                       {{ todo.description }}
-                    </a>
-                </td>
-                <td class="text-center">
-                    {% if not todo.is_completed %}
-                        <form method="post" action="{{ app.request.baseurl }}/todo/completed/{{ todo.id }}">
-                            <button type="submit" class="btn btn-xs btn-success"><span class="glyphicon glyphicon-ok-sign glyphicon-white"></span></button>
-                        </form>
-                    {% else %}
-                        Done
-                    {% endif %} 
-                </td>
-                <td class="text-center">
-                    <form method="post" action="{{ app.request.baseurl }}/todo/delete/{{ todo.id }}">
-                        <button type="submit" class="btn btn-xs btn-danger"><span class="glyphicon glyphicon-remove glyphicon-white"></span></button>
-                    </form>
-                </td>
-                <td class="text-center">
-                    <form method="get" action="{{ app.request.baseurl }}/todo/{{ todo.id }}/json">
-                        <button type="submit" class="btn btn-sm btn-primary">Show</button>
-                    </form>
-                </td>
-            </tr>
-        {% endfor %}
-        <tr>
-            <td colspan="6" class="text-center"> 
-                {# Show pagination if there are more than 5 items to be displayed #}
-                {% if total_pages > 1 %}
-                {% for page_number in 1..total_pages %}
-                {% if current_page == page_number %}
-                <button class="small btn btn-primary">{{ page_number }}</button>
-                {% else %}
-                <a href='{{ app.request.baseurl }}/todo?page={{page_number}}' class="small btn btn-secondary">{{
-                    page_number
-                    }}</a>
-                {% endif %}
-                {% endfor %}
-                {% endif %}
-            </td>
-        </tr>
-        <tr>
-            <form method="post" action="{{ app.request.baseurl }}/todo/add">
-                <td colspan="5">
-                    <input type="textbox" name="description" class="small-6 small-center" placeholder="Description..." oninvalid="this.setCustomValidity('Please add a description!')" required>
-                </td>
-                <td>
-                    <button type="submit" class="btn btn-sm btn-primary">Add</button>
-                </td>
-            </form>
-        </tr>
-    </table>
+    
 </div>
+
+<script>
+    var todos = new Vue({
+        el: '#todos',
+        data: {
+            user_id: '{{ user.id }}',
+            isError: false,
+            toDoList: [],
+            toDoListIsLoading: true,
+            newTodoDescription: '',
+        },
+        computed: {
+            isDisabled() {
+            if(this.newTodoDescription.length == 0) {
+                return true
+            }
+      },
+    },
+        methods: {
+            getToDos: function() {
+                this.toDoListIsLoading = true;
+                axios({
+                    method: 'get',
+                    url: '{{app.request.baseurl}}/todo',
+                    data: {},
+                    headers: { 'Content-Type': 'application/json' },
+                })
+                    .then(result => {                    
+                        this.toDoList = result.data;
+                    })
+                    .catch(error => {
+                        console.log(error);
+                        this.isError = true;
+                    })
+                    .finally(() => {
+                        this.toDoListIsLoading = false;
+                    });
+            },
+            createToDo: async function() {
+                // Clear the input now, so the user gets instant feedback
+
+
+                const description = this.newTodoDescription;
+                this.newTodoDescription = '';
+                const params = new URLSearchParams();
+                params.append('description', description);
+                axios({
+                    method: 'post',
+                    url: '{{app.request.baseurl}}/todo/add',
+                    data: params
+                }).then(result => {
+                        this.toDoList.push(result.data);
+                    }).catch(error => {
+                        console.log(error);
+                        this.isError = true;
+                    });
+            
+            },
+            deleteToDo: function(toDo) {
+                // Find the index of the todo to be deleted
+                const toDoToDeleteIndex = this.toDoList.findIndex(t => t.id === toDo.id);             
+
+                axios({
+                    method: 'delete',
+                    url: `{{app.request.baseurl}}/todo/delete/${toDo.id}`,
+                    data: {},
+                    headers: { 'Content-Type': 'application/json' },
+                }).then(()=>{
+                    this.toDoList.splice(toDoToDeleteIndex, 1);
+                })              
+                .catch(error => {
+                    console.error(error);
+                    this.isError = true;
+                });
+            },
+            markCompleted: function(todo) {
+                axios({
+                    method: 'PUT',
+                    url: `{{app.request.baseurl}}/todo/completed/${todo.id}`,
+                    data: {},
+                    headers: { 'Content-Type': 'application/json' },
+                }).catch(error => {
+                    console.error(error);
+                    this.isError = true;
+                });
+            },
+            logout: function() {
+                axios({
+                    method: 'GET',
+                    url: `{{app.request.baseurl}}/logout`,
+                }).then(() =>{
+                    window.location.href = `{{app.request.baseurl}}/`;
+                })
+                .catch(error => {
+                    console.error(error);
+                    this.isError = true;
+                });
+            }
+        },
+        created: function() {
+            this.getToDos();
+        },
+        delimiters: ['${', '}'],
+    });
+</script>
+
 {% endblock %}
